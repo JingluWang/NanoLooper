@@ -66,13 +66,14 @@ int main(int argc, char** argv)
             case AnalysisConfig::k1Lep2fatJets: ana.looperMode = AnalysisConfig::k1Lep2fatJets; break;
         }
     }
+    /*
     else
     {
         std::cout << options.help() << std::endl;
         std::cout << "ERROR: Looper mode is not provided! Check your arguments" << std::endl;
         exit(1);
     }
-
+    */
     //_______________________________________________________________________________
     // --region
     if (result.count("region"))

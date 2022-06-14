@@ -272,30 +272,8 @@ void Begin_Common_Create_Branches()
     ana.tx.createBranch<vector<int>>          ("Common_gen_mother_id");  // Selected gen-particle mother id in NanoAOD
     ana.tx.createBranch<vector<int>>          ("Common_gen_pdgid");      // Selected gen-particle pdgids
     ana.tx.createBranch<vector<LorentzVector>>("Common_gen_p4s");        // Selected gen-particle p4s
-
-    ana.tx.createBranch<vector<int>>          ("Common_gen_vvvdecay_idx");          // Selected gen-particle of vvv decays idx in NanoAOD
-    ana.tx.createBranch<vector<int>>          ("Common_gen_vvvdecay_mother_idx");   // Selected gen-particle of vvv decays mother idx in NanoAOD
-    ana.tx.createBranch<vector<int>>          ("Common_gen_vvvdecay_mother_id");    // Selected gen-particle of vvv decays mother id in NanoAOD
-    ana.tx.createBranch<vector<int>>          ("Common_gen_vvvdecay_pdgid");        // Selected gen-particle of vvv decays pdgids
-    ana.tx.createBranch<vector<LorentzVector>>("Common_gen_vvvdecay_p4s");          // Selected gen-particle of vvv decays p4s
-    ana.tx.createBranch<vector<int>>          ("Common_gen_vvvdecay_taudecayid");   // If gentau - flag the decay of the gentau
-
-    ana.tx.createBranch<bool>                 ("Common_isSignal");
-    ana.tx.createBranch<int>                  ("Common_n_W");
-    ana.tx.createBranch<int>                  ("Common_n_Z");
-    ana.tx.createBranch<int>                  ("Common_n_lep_Z");
-    ana.tx.createBranch<int>                  ("Common_n_leptau_Z");
-    ana.tx.createBranch<int>                  ("Common_n_hadtau_Z");
-    ana.tx.createBranch<int>                  ("Common_n_nu_Z");
-    ana.tx.createBranch<int>                  ("Common_n_b_Z");
-    ana.tx.createBranch<int>                  ("Common_n_lep_W");
-    ana.tx.createBranch<int>                  ("Common_n_leptau_W");
-    ana.tx.createBranch<int>                  ("Common_n_hadtau_W");
-    ana.tx.createBranch<bool>                 ("Common_haslepWSS");  // includes leptonic tau decays
-
-    ana.tx.createBranch<float>                ("Common_genHT");       // Gen HT value for stitching HT-sliced samples
-    ana.tx.createBranch<int>                  ("Common_gen_n_light_lep"); // Gen value of how many light lepton exists
-    ana.tx.createBranch<int>                  ("Common_gen_VH_channel"); // VH Channel (0 = WH->WWW, 1 = ZH->ZWW, 2 = WH->WZZ, 3 = ZH->ZZZ, -PDGID = if another channel, and is H->tautau then it would be -15.)
+    ana.tx.createBranch<vector<int>>          ("Common_gen_status");
+    ana.tx.createBranch<vector<int>>          ("Common_gen_statusFlags");
 
 }
 
@@ -681,7 +659,9 @@ void Begin_Common_NanoAOD()
         return true;
         
         }, [&]() { return 1; } );
-
+    ana.cutflow.addCutToLastActiveCut("LastCutHere",[&](){
+	return false;
+	},UNITY);
     // Various book keeping variables are included here.
     // TODO: Define some diagnostic basic plots
 
@@ -694,13 +674,9 @@ void Begin_Common_NanoAOD()
     hists_Common.addHistogram("h_Common_nLep", 10, 0, 10, [&]() { return ana.tx.getBranchLazy<vector<int>>("Common_lep_idxs").size(); } );
     hists_Common.addHistogram("h_Common_nJet", 10, 0, 10, [&]() { return ana.tx.getBranchLazy<vector<int>>("Common_jet_idxs").size(); } );
     hists_Common.addHistogram("h_Common_nFatJet", 10, 0, 10, [&]() { return ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size(); } );
-    hists_Common.addHistogram("h_Common_nGenW", 100, 0, 100, [&]() { return (ana.tx.getBranchLazy<int>("Common_n_W")>=0 ? (ana.tx.getBranchLazy<int>("Common_n_W") +ana.tx.getBranchLazy<int>("Common_n_lep_W")+ana.tx.getBranchLazy<int>("Common_n_leptau_W")+ana.tx.getBranchLazy<int>("Common_n_hadtau_W")+ (ana.tx.getBranchLazy<int>("Common_n_lep_W")>0 ? 3:0) + (ana.tx.getBranchLazy<int>("Common_n_leptau_W")>0 ? 9:0) + (ana.tx.getBranchLazy<int>("Common_n_hadtau_W")>0 ? 21:0) +(ana.tx.getBranchLazy<bool>("haslepWSS") ? 46:0)) : -999); });
-    hists_Common.addHistogram("h_Common_nGenZ", 300, 0, 300, [&]() { return (ana.tx.getBranchLazy<int>("Common_n_Z")>=0 ? (ana.tx.getBranchLazy<int>("Common_n_Z") +ana.tx.getBranchLazy<int>("Common_n_lep_Z")+ana.tx.getBranchLazy<int>("Common_n_leptau_Z")+ana.tx.getBranchLazy<int>("Common_n_hadtau_Z")+ana.tx.getBranchLazy<int>("Common_n_nu_Z")+ana.tx.getBranchLazy<int>("Common_n_b_Z")+ (ana.tx.getBranchLazy<int>("Common_n_lep_Z")>0 ? 3:0) + (ana.tx.getBranchLazy<int>("Common_n_leptau_Z")>0 ? 12:0) + (ana.tx.getBranchLazy<int>("Common_n_hadtau_Z")>0 ? 30:0) + (ana.tx.getBranchLazy<int>("Common_n_nu_Z")>0 ? 67:0) + (ana.tx.getBranchLazy<int>("Common_n_b_Z")>0 ? 140:0) ) : -999); });
-    hists_Common.addHistogram("h_Common_isSS", 2, 0, 2, [&]() { return (ana.tx.getBranchLazy<int>("Common_n_W")>=0 ? (ana.tx.getBranchLazy<bool>("Common_haslepWSS") ? 1. : 0.) : -999.); } );
 
     // Book histograms to cuts that user wants for this category.
     ana.cutflow.bookHistogramsForCut(hists_Common, "CommonCut");
-
     // EFT reweighting histogram
     RooUtil::Histograms n_lhe_weight;
     if (ana.is_EFT_sample)

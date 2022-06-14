@@ -12,7 +12,7 @@ void Terminate()
     Terminate_Common();
 
     // Then depending on the analysis mode, different "Terminate" runs
-
+    /*
     switch (ana.looperMode)
     {
         case AnalysisConfig::k4LepMET: Terminate_4LepMET(); break;
@@ -26,7 +26,7 @@ void Terminate()
         case AnalysisConfig::kallHad: Terminate_allHad(); break;
         case AnalysisConfig::k1Lep2fatJets: Terminate_1Lep2fatjet(); break;
     }
-
+    */
 
     // Writing output file
     ana.cutflow.saveOutput();

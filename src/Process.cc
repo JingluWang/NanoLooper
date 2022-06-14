@@ -12,7 +12,7 @@ void Process()
     Process_Common();
 
     // Then depending on the analysis mode, different "Process" runs
-
+/*
     switch (ana.looperMode)
     {
         case AnalysisConfig::k4LepMET: Process_4LepMET(); break;
@@ -26,7 +26,7 @@ void Process()
         case AnalysisConfig::kallHad: Process_allHad(); break;
         case AnalysisConfig::k1Lep2fatJets: Process_1Lep2fatjet(); break;
     }
-
+*/
     // At this point, variables are all computed and set
 
     // Now fill all the histograms that are booked!
@@ -34,6 +34,11 @@ void Process()
 
     // If there are certain things people wish to do "Post" processing of the cutflows and histogramming
     // For example this is where one would write out TTree
+    if (ana.write_tree)
+    {
+	PostProcess_Common();
+    }
+/*
     if (ana.write_tree)
     {
         switch (ana.looperMode)
@@ -50,7 +55,7 @@ void Process()
             case AnalysisConfig::k1Lep2fatJets: break;
         }
     }
-
+*/
     // Reset all the variables!
     ana.tx.clear();
 }

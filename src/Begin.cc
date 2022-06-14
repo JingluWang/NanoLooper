@@ -12,7 +12,7 @@ void Begin()
     Begin_Common();
 
     // Then depending on the analysis mode, different "Begin" runs
-
+/*
     switch (ana.looperMode)
     {
         case AnalysisConfig::k4LepMET: Begin_4LepMET(); break;
@@ -26,7 +26,7 @@ void Begin()
         case AnalysisConfig::kallHad: Begin_allHad(); break;
         case AnalysisConfig::k1Lep2fatJets: Begin_1Lep2fatjet(); break;
     }
-
+*/
     // At this point, the variables, histograms, selections are all defined and booked.
 
     // Print cut structure

@@ -12,72 +12,13 @@
     make -j;
 
 ## Quick start
-
-Below command will create ```debug.root``` output from the loop
-
-     ./doVVVAnalysis --input /hadoop/cms/store/group/snt/nanoaod/GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8__RunIIAutumn18NanoAODv5-Nano1June2019_102X_upgrade2018_realistic_v19-v1/C91570D8-46E6-6A4F-B722-857B9C5FE1F4.root \
-        --tree Events \
-        --mode 0 \
-        --debug
-
-Alternatively, if you want to write it out to ```my_output.root```,
-
-     ./doVVVAnalysis --input /hadoop/cms/store/group/snt/nanoaod/GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8__RunIIAutumn18NanoAODv5-Nano1June2019_102X_upgrade2018_realistic_v19-v1/C91570D8-46E6-6A4F-B722-857B9C5FE1F4.root \
-        --tree Events \
-        --mode 0 \
-        --output my_output.root
-
-This will create some dummy histograms with dummy variables with dummy selections.  See the actual source code to see what is going on.
+     ./doVVVAnalysis --input INPUTFILENAME --tree Events --output OUTPUTFILENAME.root (--write)
 
 ## Code organization
 
-The ```doVVVAnalysis``` executable will take in NanoAOD root file and produce histograms (or TTree--but currently not implemented).
-
-The development of different VVV channel will be modular by the option ```--mode```.
-
-Currently the implemented catgories are
-
-      -m, --mode arg         Looper mode (--mode 0=k4LepMET, 1=k4Lep2jet,
-                             2=k3LepMET, 3=k3Lep2jet, 4=kOS4jet, 5=kOS2jet, 6=kSS2jet,
-                             7=k1Lep4jet)
-
-Note by Hannsjorg: I abuse kOS2jet to also include >=1 fatjet options. 
+The ```doVVVAnalysis``` executable will take in NanoAOD root file and produce histograms and trees (given --write option)
 
 ### Begin, Process, Terminate concept
-
-The looper follows the ROOT's TSelector style framework.
-
-There are separate ```Begin_<cateogry>```, ```Process_<catgory>```, and ```Terminate_<cateogry>``` functions defined in ```src/*_<category>.cc/h```.
-
-The ```--mode``` option will determine which one will be called.
-
-Regardless of which mode it is, the ```Begin_Common```, ```Process_Common```, and ```Terminate_Common``` will always run before each channel's relevant function runs.
-
-So the pseudocode representation of the order of function call look like the following:
-
-    main()
-    {
-        ...
-        ...
-
-        Begin_Common();
-        Begin_<category>();
-
-        while (event loop)
-        {
-
-            Process_Common();
-            Process_<category>();
-
-        }
-
-        Terminate_Common();
-        Terminate_<category>();
-
-        ...
-        ...
-            
-    }
 
 #### Begin
 
@@ -119,15 +60,12 @@ Note that ```getBranchLazy``` used to access the variables that was defined to d
 
 N.B. There is ```getBranchLazy``` and ```getBranch```.  If ```getBranch``` is used and the variable was not set before calling and trying to access, RooUtil will throw an error. (see below the debug tip section for example.)
 
-##### Note on common variables that would be shared across different channels
+#### Adding Cuts
 
-If some variables, histograms, or event selections need to run for all categories, then they should be implemented in ```Common``` equivalent area.
-
-Currently in the ```Begin/Process/Terminate_Common.cc/h``` file, a simple muon/electron selection is defined.
-
-The POG Iso MVA electron WP 90% and medium POG muon ID is implemented.
-
-Take a look there to get an idea how things may work.
+Use the following 
+ana.cutflow.addCutToLastActiveCut("NAME", <lambda>, <lambda>);
+The first lambda function is for cut, the second lambda function is for weight
+Examples can be found in Begin_Common_NanoAOD()
 
 #### Process
 
@@ -153,41 +91,27 @@ If you want to add a LorentzVector to the list of LorentzVector
 
     ana.tx.pushbackToBranch<LorentzVector>("<category>_<name>", lorentzVector);
 
-If some variables need to run for all categories, then they should be implemented in ```Common``` equivalent area.
+#### Fill output trees
+
+Output trees can be filled with
+
+ana.tx.fill();
+
+an example can be found in PostProcess_Common()
 
 #### Terminate
 
 This is where the stuff that runs once after the event loop is done.
 
-If some action needs to run for all categories, then they should be implemented in ```Common``` equivalent area.
 
 ### Grid submission
 
-To submit jobs to the grid, do the following
-
-    cd ProjectMetis
-    source setup.sh
-
-Or, if you had done the following the equivalent of above two lines would have already been ran.
-
-    source source_all.sh
-
-Then go to ```condor``` directory.
-
-    cd ../condor
-    sh maketar.sh # it will make clean; make -j again before tarring up
-    python submitMetis.py -y year -t tag -m mode 
-    python submitMetis.py -m mode -y year -t tag
-
-To write out intermediate ntuple with ```Common_*``` branches, add the ``` -a " -w" ``` option
-
-    python submitMetis.py -m mode -y year -t tag -a " -w"
-
-To submit jobs on lpc cluster, substitute ```submitMetis.py``` with ```submitlpc.py```, i.e.
+To submit jobs on lpc cluster, use 
     
     python submitlpc.py -m mode -y year -t tag (-d)  
     python submitlpc.py -m mode -y year -t tag -a " -w" (-d)
 
+in condor
 
 Note that this submission script does not merge files automatically, to merge files, do
 
