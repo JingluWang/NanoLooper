@@ -659,9 +659,17 @@ void Begin_Common_NanoAOD()
         return true;
         
         }, [&]() { return 1; } );
-    ana.cutflow.addCutToLastActiveCut("LastCutHere",[&](){
-	return false;
+
+    ana.cutflow.addCutToLastActiveCut("Drell-Yan",[&](){
+
+	if ( ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").size() != 2 ) return false;
+
+	if ( (ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(0) + ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(1)) != 0 ) return false;
+
+	return true;
+
 	},UNITY);
+
     // Various book keeping variables are included here.
     // TODO: Define some diagnostic basic plots
 
@@ -675,8 +683,10 @@ void Begin_Common_NanoAOD()
     hists_Common.addHistogram("h_Common_nJet", 10, 0, 10, [&]() { return ana.tx.getBranchLazy<vector<int>>("Common_jet_idxs").size(); } );
     hists_Common.addHistogram("h_Common_nFatJet", 10, 0, 10, [&]() { return ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size(); } );
 
+    hists_Common.addHistogram("h_Common_Zmass", 100, 60, 120, [&]() { return (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(0) + ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(1)).M(); } );
+
     // Book histograms to cuts that user wants for this category.
-    ana.cutflow.bookHistogramsForCut(hists_Common, "CommonCut");
+    ana.cutflow.bookHistogramsForCut(hists_Common, "Drell-Yan");
     // EFT reweighting histogram
     RooUtil::Histograms n_lhe_weight;
     if (ana.is_EFT_sample)
