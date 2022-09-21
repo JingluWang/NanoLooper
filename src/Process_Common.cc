@@ -251,14 +251,14 @@ void Process_Common_NanoAOD()
         // Selections
         if (not (nt.Muon_mediumId()[imu]             )) continue; // TODO: What is Muon_mediumPromptId in NanoAOD?
         if (not (nt.Muon_p4()[imu].pt()        > 10. )) continue;
-        if (not (nt.Muon_pfRelIso04_all()[imu] < 0.25)) continue; // i.e. Loose from https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonSelection#Particle_Flow_isolation
+//        if (not (nt.Muon_pfRelIso04_all()[imu] < 0.25)) continue; // i.e. Loose from https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonSelection#Particle_Flow_isolation
         if (not (abs(nt.Muon_p4()[imu].eta())  < 2.4 )) continue;
 
         // If passed up to here add it to the index list
         ana.tx.pushbackToBranch<int>("Common_lep_idxs", imu);
         ana.tx.pushbackToBranch<int>("Common_lep_pdgid", nt.Muon_pdgId()[imu]);
         ana.tx.pushbackToBranch<LorentzVector>("Common_lep_p4", nt.Muon_p4()[imu]);
-        ana.tx.pushbackToBranch<int>("Common_lep_tight", nt.Muon_pfRelIso04_all()[imu] < 0.15); // i.e. Tight from https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonSelection#Particle_Flow_isolation
+//        ana.tx.pushbackToBranch<int>("Common_lep_tight", nt.Muon_pfRelIso04_all()[imu] < 0.15); // i.e. Tight from https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonSelection#Particle_Flow_isolation
         ana.tx.pushbackToBranch<float>("Common_lep_dxy", nt.Muon_dxy()[imu]);
         ana.tx.pushbackToBranch<float>("Common_lep_dz", nt.Muon_dz()[imu]);
         ana.tx.pushbackToBranch<float>("Common_lep_ip3d", nt.Muon_ip3d()[imu]);
@@ -356,6 +356,74 @@ void Process_Common_NanoAOD()
     float btagLoose_LFup_prob_DATA = 1;
     float btagLoose_LFdn_prob_DATA = 1;
 
+
+//Adding
+//Truth-level
+    for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
+    {
+        if (nt.GenPart_pdgId()[i] == 23)//Z
+        {
+            ana.tx.pushbackToBranch<LorentzVector>("Common_ZTruth_p4" , nt.GenPart_p4()[i]);
+            ana.tx.pushbackToBranch<int>("Common_ZTruth_idx" , i);
+        }
+
+
+        if (nt.GenPart_pdgId()[i] == 5 || nt.GenPart_pdgId()[i] == -5)//b decayed from Z
+        {
+            Int_t m_idx = nt.GenPart_genPartIdxMother()[i];
+            if (nt.GenPart_pdgId()[m_idx] == 23)
+            {
+                ana.tx.pushbackToBranch<LorentzVector>("Common_bTruth_p4" , nt.GenPart_p4()[i]);
+            }
+        }
+
+
+        if (nt.GenPart_pdgId()[i] == 13 || nt.GenPart_pdgId()[i] == -13)//Muons
+        {
+            ana.tx.pushbackToBranch<LorentzVector>("Common_muTruth_p4" , nt.GenPart_p4()[i]);
+        }
+
+
+        if (nt.GenPart_pdgId()[i] == 1 || nt.GenPart_pdgId()[i] == -1)//d decayed from Z
+        {
+	    Int_t m_idx = nt.GenPart_genPartIdxMother()[i];
+            if (nt.GenPart_pdgId()[m_idx] == 23)
+            {
+                ana.tx.pushbackToBranch<LorentzVector>("Common_dTruth_p4" , nt.GenPart_p4()[i]);
+            }
+        }
+
+        if (nt.GenPart_pdgId()[i] == 2 || nt.GenPart_pdgId()[i] == -2)//u decayed from Z
+        {
+	    Int_t m_idx = nt.GenPart_genPartIdxMother()[i];
+            if (nt.GenPart_pdgId()[m_idx] == 23)
+            {
+                ana.tx.pushbackToBranch<LorentzVector>("Common_uTruth_p4" , nt.GenPart_p4()[i]);
+	    }
+        }
+
+        if (nt.GenPart_pdgId()[i] == 3 || nt.GenPart_pdgId()[i] == -3)//s decayed from Z
+        {
+	    Int_t m_idx = nt.GenPart_genPartIdxMother()[i];
+            if (nt.GenPart_pdgId()[m_idx] == 23)
+            {
+                ana.tx.pushbackToBranch<LorentzVector>("Common_sTruth_p4" , nt.GenPart_p4()[i]);
+	    }
+        }
+  
+        if (nt.GenPart_pdgId()[i] == 4 || nt.GenPart_pdgId()[i] == -4)//c decayed from Z
+        {
+	    Int_t m_idx = nt.GenPart_genPartIdxMother()[i];
+            if (nt.GenPart_pdgId()[m_idx] == 23)
+            {
+                ana.tx.pushbackToBranch<LorentzVector>("Common_cTruth_p4" , nt.GenPart_p4()[i]);
+	    }
+        }
+    }
+
+
+//*******************************************************************************************************************************
+
     // Loop over jets and do a simple overlap removal against leptons
     for (unsigned int ijet = 0; ijet < nt.Jet_p4().size(); ++ijet)
     {
@@ -392,6 +460,8 @@ void Process_Common_NanoAOD()
                 }
             }
             // else muon
+//Adding
+/*
             else
             {
                 if (RooUtil::Calc::DeltaR(jet_p4, nt.Muon_p4()[ilep_idx]) < 0.4)
@@ -400,13 +470,14 @@ void Process_Common_NanoAOD()
                     break;
                 }
             }
+*/
         }
 
         if (is_overlapping_with_a_lepton)
             continue;
 
         // For the analysis level jets, consider jets only 30 and above
-        if (jet_p4.pt() > 30. and abs(jet_p4.eta()) < 3.0)//don't trust jets in HF
+        if (jet_p4.pt() > 20. and abs(jet_p4.eta()) < 3.0)//don't trust jets in HF
         {
             // For now, accept anything that reaches this point
             ana.tx.pushbackToBranch<int>("Common_jet_idxs", ijet);
@@ -415,6 +486,40 @@ void Process_Common_NanoAOD()
             ana.tx.pushbackToBranch<bool>("Common_jet_passBloose" , nt.Jet_btagDeepFlavB()[ijet] > bWPloose );
             ana.tx.pushbackToBranch<bool>("Common_jet_passBmedium", nt.Jet_btagDeepFlavB()[ijet] > bWPmedium);
             ana.tx.pushbackToBranch<bool>("Common_jet_passBtight" , nt.Jet_btagDeepFlavB()[ijet] > bWPtight );
+//Adding
+
+//Starting with 2 Reco jets
+            if (abs(jet_p4.eta()) < 2.5)
+            {
+                ana.tx.pushbackToBranch<int>("Common_jet_tightID" , ijet);
+                ana.tx.pushbackToBranch<LorentzVector>("Common_jet_tightp4" , jet_p4);
+                ana.tx.pushbackToBranch<bool>("Common_jetTight_passBtight" , nt.Jet_btagDeepFlavB()[ijet] > bWPtight );
+
+                if (nt.Jet_btagDeepFlavB()[ijet] > bWPtight)//AK4 -- passing b-tag
+                {
+                    vector<int> didx;
+                    for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
+                    {
+                        if ((nt.GenPart_pdgId()[i] == 5 || nt.GenPart_pdgId()[i] == -5) && RooUtil::Calc::DeltaR(nt.GenPart_p4()[i], jet_p4) < 0.4)//Truth b matching AK4 b-jet
+                        {
+                            didx.push_back(i);
+                        }   
+                    }
+
+                    for (unsigned int i = 0; i < didx.size(); i++)
+                    {
+                        Int_t midx = nt.GenPart_genPartIdxMother()[didx.at(i)];
+                        if (nt.GenPart_pdgId()[midx] == 23)
+                        {
+                            ana.tx.pushbackToBranch<int>("Common_bjet_tightID" , ijet);
+                            ana.tx.pushbackToBranch<LorentzVector>("Common_bjet_tightp4" , jet_p4);
+                            ana.tx.pushbackToBranch<LorentzVector>("Common_bjetTruth_tightp4" , nt.GenPart_p4()[didx.at(i)]);
+                            break;
+                        } 
+                    }
+                }
+            }
+
             if (ana.is_postprocessed && !nt.isData())
             {
                 ana.tx.pushbackToBranch<float>("Common_jet_pt_jesup", nt.Jet_pt_jesTotalUp()[ijet]);
@@ -830,14 +935,16 @@ void Process_Common_NanoAOD()
                 }
             }
             // else muon
+/*
             else
             {
                 if (RooUtil::Calc::DeltaR(fatjet_p4, nt.Muon_p4()[ilep_idx]) < 0.8)
                 {
-                    is_overlapping_with_a_lepton = true;
+                    is_overlapping_with_a_lepton = false;//Adding
                     break;
                 }
             }
+*/
         }
 
         if (is_overlapping_with_a_lepton)
@@ -1022,6 +1129,8 @@ void Process_Common_NanoAOD()
     ana.tx.setBranch<float>("Common_eventweight_fatjet_SFdnLoose",   fjSFld);
     ana.tx.setBranch<float>("Common_eventweight_fatjet_SFdnMedium",  fjSFmd);
     ana.tx.setBranch<float>("Common_eventweight_fatjet_SFdnTight",   fjSFtd);
+
+//Adding
 
     for (unsigned int ijet = 0; ijet < ana.tx.getBranchLazy<vector<int>>("Common_jet_idxs").size(); ++ijet)
     {
