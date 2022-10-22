@@ -113,7 +113,7 @@ if __name__ == "__main__":
                     input_executable = "{}/condor_executable_lpc.sh".format(condorpath), # your condor executable here
                     tarfile = "{}/package.tar.xz".format(condorpath), # your tarfile with assorted goodies here
                     #output_dir = "/store/user/{}/VVVAnalysis/{}/{}/{}_{}/".format(os.getenv("USER"),tag,args.year,ds.get_datasetname().replace("/", "_").lstrip("_"),tag), # output files path
-		    output_dir = "/store/group/lpcvvv/{}/VVVAnalysis/{}/{}/{}_{}/".format(os.getenv("USER"),tag,args.year,ds.get_datasetname().replace("/", "_").lstrip("_"),tag), # output files path to group space
+		    output_dir = "/store/user/jwang/Zto4b_Bkg/{}/{}/{}_{}/".format(tag,args.year,ds.get_datasetname().replace("/", "_").lstrip("_"),tag), # output files path to group space
                     min_completion_fraction = 0.50 if skip_tail else 1.0,
                     # max_jobs = 10,
             )
