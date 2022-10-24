@@ -367,7 +367,7 @@ void Process_Common_NanoAOD()
             ana.tx.pushbackToBranch<int>("Common_ZTruth_idx" , i);
         }
 
-
+/*
         if (nt.GenPart_pdgId()[i] == 5 || nt.GenPart_pdgId()[i] == -5)//b decayed from Z
         {
             Int_t m_idx = nt.GenPart_genPartIdxMother()[i];
@@ -419,6 +419,7 @@ void Process_Common_NanoAOD()
                 ana.tx.pushbackToBranch<LorentzVector>("Common_cTruth_p4" , nt.GenPart_p4()[i]);
 	    }
         }
+*/
     }
 
 
@@ -477,7 +478,7 @@ void Process_Common_NanoAOD()
             continue;
 
         // For the analysis level jets, consider jets only 30 and above
-        if (jet_p4.pt() > 20. and abs(jet_p4.eta()) < 3.0)//don't trust jets in HF
+        if (jet_p4.pt() > 20. and abs(jet_p4.eta()) < 2.5)//don't trust jets in HF
         {
             // For now, accept anything that reaches this point
             ana.tx.pushbackToBranch<int>("Common_jet_idxs", ijet);
@@ -489,6 +490,7 @@ void Process_Common_NanoAOD()
 //Adding
 
 //Starting with 2 Reco jets
+/*
             if (abs(jet_p4.eta()) < 2.5)
             {
                 ana.tx.pushbackToBranch<int>("Common_jet_tightID" , ijet);
@@ -519,7 +521,7 @@ void Process_Common_NanoAOD()
                     }
                 }
             }
-
+*/
             if (ana.is_postprocessed && !nt.isData())
             {
                 ana.tx.pushbackToBranch<float>("Common_jet_pt_jesup", nt.Jet_pt_jesTotalUp()[ijet]);
@@ -919,23 +921,27 @@ void Process_Common_NanoAOD()
 
         // Because every muon and electron shows up in PF FatJet collections
         // Need to check against leptons
+/*
         bool is_overlapping_with_a_lepton = false;
 
         // Overlap check against leptons (electrons)
+
         for (unsigned int ilep = 0; ilep < ana.tx.getBranchLazy<vector<int>>("Common_lep_idxs").size(); ++ilep)
         {
+
             int ilep_idx = ana.tx.getBranchLazy<vector<int>>("Common_lep_idxs")[ilep];
             // If electron
+
             if (abs(ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid")[ilep]) == 11)
             {
                 if (RooUtil::Calc::DeltaR(fatjet_p4, nt.Electron_p4()[ilep_idx]) < 0.8)
                 {
-                    is_overlapping_with_a_lepton = true;
+                    is_overlapping_with_a_lepton = true;//Adding
                     break;
                 }
             }
             // else muon
-/*
+
             else
             {
                 if (RooUtil::Calc::DeltaR(fatjet_p4, nt.Muon_p4()[ilep_idx]) < 0.8)
@@ -944,12 +950,12 @@ void Process_Common_NanoAOD()
                     break;
                 }
             }
-*/
+
         }
 
         if (is_overlapping_with_a_lepton)
             continue;
-        
+*/        
         //computed with instructions from NanoAOD reference "For W vs QCD tagging, use (Xcc+Xqq)/(Xcc+Xqq+QCD)"
         float W_MD = ( nt.FatJet_particleNetMD_Xcc()[ifatjet] + nt.FatJet_particleNetMD_Xqq()[ifatjet]) / (nt.FatJet_particleNetMD_Xcc()[ifatjet] + nt.FatJet_particleNetMD_Xqq()[ifatjet] + nt.FatJet_particleNetMD_QCD()[ifatjet]);
 
