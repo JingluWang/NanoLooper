@@ -662,11 +662,8 @@ void Begin_Common_NanoAOD()
     ana.cutflow.addCutToLastActiveCut("CommonCut", [&]() { 
         //check golden json -- branch is true if MC
         if(! ana.tx.getBranchLazy<bool>("Common_passGoodRun")) return false;
-        
-        
         //check basic filters 
         if ( nt.isData() and !ana.tx.getBranchLazy<bool>("Common_noiseFlag") ) return false;
-        
         if ( !nt.isData() and !ana.tx.getBranchLazy<bool>("Common_noiseFlagMC") ) return false;
         
        /* std::cout << std::endl << "still here??? " << std::endl;
@@ -678,34 +675,67 @@ void Begin_Common_NanoAOD()
         
         }, [&]() { return 1; } );
 
-//DY
-/*
-    ana.cutflow.addCutToLastActiveCut("Drell-Yan",[&](){
-
-	if ( ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").size() != 2 ) return false;
-
-	if ( (ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(0) + ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(1)) != 0 ) return false;
-
-        if ( ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(0) != 13 && ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(0) != -13) return false;
-
-	return true;
-
-	},UNITY);
-*/
-
-//Top
-/*
-    ana.cutflow.addCutToLastActiveCut("2Leptons",[&](){
-
-        if ( ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").size() != 2 ) return false;
-
-        if ( (ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(0) + ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(1)) != 0 ) return false;
 
 
-        return true;
-
-        },UNITY);
-*/
+    ana.cutflow.addCutToLastActiveCut("RealCutZ2b", [&]() {
+        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
+        {
+            LorentzVector AK4, AK8;
+            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").at(0);
+            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+            if (AK4.Pt() > 200)
+            {
+                if (AK4.Vect().Dot(AK8.Vect()) < 0)
+                {
+                    if (AK8.Pt() > 100)
+                    {
+                        int JetOver60 = 0;
+                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").size(); i++)
+                        {
+                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").at(i);
+                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
+                            {
+                                JetOver60 += 1;
+                            }
+                        }
+                        if (JetOver60 == 0)
+                        {
+                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
+                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
+                            {
+                                int Nb = 0;
+                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
+                                {
+                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
+                                    int Id = nt.GenPart_pdgId()[i];
+                                    int Status = nt.GenPart_status()[i];
+                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
+                                    {
+                                        int mi = nt.GenPart_genPartIdxMother()[i];
+                                        int count = 0;
+                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
+                                        {
+                                            mi = nt.GenPart_genPartIdxMother()[mi];
+                                            count++;
+                                        }
+                                        if (nt.GenPart_pdgId()[mi] == 23)
+                                        {
+                                            Nb++;
+                                        }
+                                    }
+                                }
+                                if (Nb == 2)
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+        }, [&]() { return 1; } );
 
 
     // Various book keeping variables are included here.
@@ -723,1607 +753,408 @@ void Begin_Common_NanoAOD()
 
 
 //Adding plots...
-/*
-    hists_Common.addHistogram("Zmass", 100, 60, 120, [&]() { 
-
-        return (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(0) + ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(1)).M(); } );
-
-
-    hists_Common.addHistogram("ZpT", 400, 0, 400, [&]() { 
-
-        return (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(0) + ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(1)).Pt(); } );
-
-
-    ana.cutflow.bookHistogramsForCut(hists_Common, "Drell-Yan");
-*/
-
-
-
-/*
-
-    hists_Common.addHistogram("nJetTight", 10, -0.5, 9.5, [&]() { 
-        return ana.tx.getBranchLazy<vector<int>>("Common_jet_tightID").size(); } );
-
-
-    hists_Common.addHistogram("nbJetTight", 3, 1.5, 4.5, [&]() {//b-tagging 
-        return ana.tx.getBranchLazy<vector<int>>("Common_bjet_tightID").size(); } );
-
-
-    hists_Common.addHistogram("Mass2b", 140, 20, 160, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(1);
-            return (b1 + b2).M();
-        }
-        return float(0); } );
-
-    
-    hists_Common.addHistogram("Mass2bTruth", 140, 20, 160, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(1);
-            return (b1 + b2).M();
-        }
-        return float(0); } );
-
-
-    hists_Common.addHistogram("M_b1Truth", 60, 60, 120, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").size() == 2)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(0).M();
-        return float(0); } );
-
-
-    hists_Common.addHistogram("M_b2Truth", 60, 60, 120, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").size() == 2)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(1).M();
-        return float(0); } );
-
-
-    hists_Common.addHistogram("pT_b1Truth", 500, 0, 500, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").size() == 2)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(0).Pt();
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("pT_b2Truth", 500, 0, 500, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").size() == 2)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(1).Pt();
-        return float(-1); } );
-*/
-
-
-/*
-    hists_Common.addHistogram("dR_2bTruth_Zboost", 100, 0, 2, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjetTruth_tightp4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                return RooUtil::Calc::DeltaR(b1, b2);
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("dR_2bTruth_ZTruthboost", 100, 0, 2, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2)
-        {
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                if (b1.Pt() > 20 && abs(b1.Eta()) < 2.5 && b2.Pt() > 20 && abs(b2.Eta()) < 2.5)
-                {
-                    return RooUtil::Calc::DeltaR(b1, b2);
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("dR_Z-Fjet_ZTruthboost", 100, 0, 2, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                return RooUtil::Calc::DeltaR(Z2b, ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0));
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("dR_AK4b1-AK8_ZTruthboost", 100, 0, 2, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                return RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0), ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0));
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("dR_AK4b2-AK8_ZTruthboost", 100, 0, 2, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                return RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(1), ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0));
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("N_muAK8_ZTruthboost", 5, 0.5, 5.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            int N_mu = 0;
-
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-	        if (RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0), ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0)) < 0.6)
-                {
-                    unsigned int Nmax = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").size();
-                    for (unsigned int i = 0; i < Nmax; i++)
-                    {
-                        if (ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i) == 13 || ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i) == -13)
-                        {
-                            float pT_mu = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(i).Pt();
-                            float dR_muAK8 = RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(i), ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0));
-                            if (pT_mu > 5 && dR_muAK8 < 0.8)
-                            {
-                                N_mu += 1;
-                            }
-                        }
-                    }
-                } 
-            }
-            return N_mu; 
-        }
-        return int(-1); } );
-    
-
-    hists_Common.addHistogram("N_muTruthAK8_ZTruthboost", 5, 0.5, 5.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            int N_mu = 0;
-
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                if (RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0), ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0)) < 0.6)
-                {
-                    unsigned int Nmax = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_muTruth_p4").size();
-                    for (unsigned int i = 0; i < Nmax; i++)
-                    {
-                        float pT_mu = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_muTruth_p4").at(i).Pt();
-                        float dR_muAK8 = RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_muTruth_p4").at(i), ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0));
-                        if (pT_mu > 5 && dR_muAK8 < 0.8)
-                        {
-                            N_mu += 1;
-                        }
-                    }
-                }
-            }
-            return N_mu;
-        }
-        return int(-1); } );
-*/
-
-//Count trigger jets
-    hists_Common.addHistogram("N_triggerAK4_ZTruthboost", 9, -0.5, 8.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0)
-        {
-            LorentzVector b1, b2, Z2b;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                int N_AK4 = 0;
-                for (unsigned int i = 0; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                {
-                    LorentzVector AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                    if (AK4.Vect().Dot(Z2b.Vect()) < 0)
-                    {
-                        if (AK4.Pt() > 100)
-                        {
-                            N_AK4 += 1;
-                        }
-                    }
-                }
-                return N_AK4;
-            }
-        }
-        return int(-1); } );
-
-/*
-    hists_Common.addHistogram("Phi_triggerAK4", 20, -2*M_PI, 2*M_PI, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0)
-        {   
-            LorentzVector AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            if (AK4.Pt() > 30)
-            {   
-                return AK4.Phi();
-            }
-        }
-        return float(-10); } );
-
-
-    hists_Common.addHistogram("dR_muAK8_2_ZTruthboost", 200, 0, 4, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() > 1 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2, Z2b, AK8;
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(1);
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                if (RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0), AK8) < 0.6)
-                {
-                    unsigned int Nmax = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").size();
-                    for (unsigned int i = 0; i < Nmax; i++)
-                    {
-                        if (ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i) == 13 || ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i) == -13)
-                        {
-                            return RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(i), AK8);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("dR_muAK8_1_ZTruthboost", 200, 0, 4, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
-        {
-            LorentzVector b1, b2, Z2b, AK8;
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (Z2b.Pt() > 200)
-            {
-                if (RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0), AK8) < 0.6)
-                {
-                    unsigned int Nmax = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").size();
-                    for (unsigned int i = 0; i < Nmax; i++)
-                    {
-                        if (ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i) == 13 || ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i) == -13)
-                        {
-                            return RooUtil::Calc::DeltaR(ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(i), AK8);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("pT_AK4_1_ZTruthboost", 300, 200, 800, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0)
-        {  
-            LorentzVector b1, b2, Z2b, AK4;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(Z2b.Vect()) < 0)
-                {
-                    return AK4.Pt();
-                }
-            }
-        }
-        return float(-1); } );
-
-*/
-//****************************************************************************************************************//
-//Adding
-//Only RECO
-/*
-    hists_Common.addHistogram("pT_AK4_1", 350, 100, 800, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0)
-        {   
-            LorentzVector AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            if (AK4.Pt() > 200)
-            {   
-                return AK4.Pt();
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("pT_AK8_1", 350, 100, 800, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {   
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {       
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        return AK8.Pt();
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-*/
-/*
 //Selection for real process
-    hists_Common.addHistogram("pT_AK8_1_boost", 350, 100, 800, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
+
+    hists_Common.addHistogram("N_emu", 6, -0.5, 5.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_emu = 0;
+        unsigned int Nmax = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").size();
+        for (unsigned int i = 0; i < Nmax; i++)
         {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
+            int Id = ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i);
+            if (abs(Id) == 13 || abs(Id) == 11)
             {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
+                LorentzVector Lep = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(i);
+                float pT = Lep.Pt();
+                float dR_AK8 = RooUtil::Calc::DeltaR(AK8, Lep);
+                if (pT > 5 && dR_AK8 < 0.8)
                 {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;       
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            return AK8.Pt();
-                        }
-                    }
+                    N_emu += 1;
                 }
             }
         }
-        return float(-1); } );
+        return N_emu; } );
 
-
-    hists_Common.addHistogram("pT_AK8_1_boost_ZbbTruth", 350, 100, 800, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {   
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {   
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {   
-                    if (AK8.Pt() > 100)
-                    {   
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)                       
-                        {   
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {   
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {   
-                            return AK8.Pt();
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
 
     
-    hists_Common.addHistogram("b_score_AK8_1_boost_btag", 50, 0, 1, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
+    hists_Common.addHistogram("N_SV_massCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
         {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
             {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
+                float massSV = nt.SV_mass()[i];
+                if (massSV > 1) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_mdCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float massSV = nt.SV_mass()[i];
+                float dlenSV = nt.SV_dlen()[i];
+                if (massSV > 1 && dlenSV > 0.1) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_mnCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float massSV = nt.SV_mass()[i];
+                float ndofSV = nt.SV_ndof()[i];
+                if (massSV > 1 && ndofSV >= 3) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_dnCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float dlenSV = nt.SV_dlen()[i];
+                float ndofSV = nt.SV_ndof()[i];
+                if (dlenSV > 0.1 && ndofSV >= 3) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_d2nCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float dxySV = nt.SV_dxy()[i];
+                float ndofSV = nt.SV_ndof()[i];
+                if (dxySV > 0.1 && ndofSV >= 3) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_mdnCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float massSV = nt.SV_mass()[i];
+                float dlenSV = nt.SV_dlen()[i];
+                float ndofSV = nt.SV_ndof()[i];
+                if (massSV > 1 && dlenSV > 0.1 && ndofSV >= 3) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_md2nCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float massSV = nt.SV_mass()[i];
+                float dxySV = nt.SV_dxy()[i];
+                float ndofSV = nt.SV_ndof()[i];
+                if (massSV > 1 && dxySV > 0.1 && ndofSV >= 3) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_dlenCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float dlenSV = nt.SV_dlen()[i];
+                if (dlenSV > 0.1) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_dxyCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float dxySV = nt.SV_dxy()[i];
+                if (dxySV > 0.1) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("N_SV_ndofCut", 12, -0.5, 11.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        int N_SV = 0;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float ndofSV = nt.SV_ndof()[i];
+                if (ndofSV >= 3) N_SV += 1;
+            }
+        }
+        return N_SV; } );
+
+
+
+    hists_Common.addHistogram("d_SV_bHadron", 20, 0, 10, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float svX = nt.SV_x()[i];
+                float svY = nt.SV_y()[i];
+                float svZ = nt.SV_z()[i];
+
+                float d_min = 10;
+                for (unsigned int j = 0; j < nt.GenPart_p4().size(); j++)
                 {
-                    if (AK8.Pt() > 100)
+                    int mj = nt.GenPart_genPartIdxMother()[j];
+                    if (abs(nt.GenPart_p4()[mj].M() - 5) < 1 && nt.GenPart_p4()[j].M() < 3)
                     {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            return nt.FatJet_deepTagMD_bbvsLight()[AK8idx];
-                        }
+                        LorentzVector bHadron = nt.GenPart_p4()[j];
+                        float hX = bHadron.X();
+                        float hY = bHadron.Y();
+                        float hZ = bHadron.Z();
+                        float d_SVhadron = sqrt((svX-hX)*(svX-hX) + (svY-hY)*(svY-hY) + (svZ-hZ)*(svZ-hZ));
+                        if (d_SVhadron < d_min) d_min = d_SVhadron;
                     }
                 }
+                return d_min;
             }
         }
         return float(-1); } );
 
 
-    hists_Common.addHistogram("b_score_AK8_1_boost_btag_ZbbTruth", 50, 0, 1, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
+    hists_Common.addVecHistogram("SV_mass", 50, 0, 10, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        std::vector<float> M_SV;
+        for (unsigned int i = 0; i < nt.SV_mass().size(); ++i)
         {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            return nt.FatJet_deepTagMD_bbvsLight()[AK8idx];
-                        }
-                    }
-                }
-            }
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8) M_SV.push_back(nt.SV_mass()[i]);
         }
-        return float(-1); } );
+        return M_SV; } );
 
 
-    hists_Common.addHistogram("dR_ZTruthAK8_1_boost", 100, 0, 4, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector Z, AK4, AK8;
-            Z = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").at(0);
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            return RooUtil::Calc::DeltaR(AK8, Z);
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
+    hists_Common.addVecHistogram("SV_dlen", 50, 0, 5, [&]() {
+        std::vector<float> D_SV;
+        for (unsigned int i = 0; i < nt.SV_dlen().size(); ++i) D_SV.push_back(nt.SV_dlen()[i]);
+        return D_SV; } );
 
 
-    hists_Common.addHistogram("dR_ZTruthAK8_1_boost_btag", 100, 0, 4, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector Z, AK4, AK8;
-            Z = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").at(0);
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                return RooUtil::Calc::DeltaR(AK8, Z);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
+    hists_Common.addVecHistogram("SV_dxy", 50, 0, 5, [&]() {
+        std::vector<float> Dxy_SV;
+        for (unsigned int i = 0; i < nt.SV_dxy().size(); ++i) Dxy_SV.push_back(nt.SV_dxy()[i]);
+        return Dxy_SV; } );
 
 
-    hists_Common.addHistogram("Msd_AK8_1_boost_btag", 180, 0, 180, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
+    hists_Common.addVecHistogram("SV_ndof", 13, -0.5, 12.5, [&]() {
+        std::vector<float> ndof_SV;
+        for (unsigned int i = 0; i < nt.SV_ndof().size(); ++i) ndof_SV.push_back(nt.SV_ndof()[i]);
+        return ndof_SV; } );
+
+
+    hists_Common.addHistogram("dR_GenPartSV", 100, 0, 1, [&]() {
+        LorentzVector G;
+        for (unsigned int i = 0; i < nt.GenPart_p4().size(); ++i)
         {   
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
+            int mi = nt.GenPart_genPartIdxMother()[i];
+            if (abs(nt.GenPart_p4()[mi].M() - 5) < 1 && nt.GenPart_p4()[i].M() < 3)
             {   
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {   
-                    if (AK8.Pt() > 100)
-                    {   
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)                       
-                        {   
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {   
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {   
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {   
-                                return nt.FatJet_msoftdrop()[AK8idx];
-                            }
-                        }
-                    }
-                }
+                G = nt.GenPart_p4()[mi];//b hadron (mass: 4 - 6 GeV, daughter mass < 3 GeV) -- weakly decayed
+                break;
             }
         }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("Msd_AK8_Z", 180, 0, 180, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {   
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)                       
-                        {   
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {   
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {   
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {   
-                                int Nb = 0;
-				for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-				{
-				    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]); 
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-				    if (dR < 0.8 && (Id == 5 || Id == -5) && Status > 20 && Status < 30)
-				    {
-				        int mi = nt.GenPart_genPartIdxMother()[i];
-				        int count = 0;
-				        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-				        {
-				            mi = nt.GenPart_genPartIdxMother()[mi];
-					    count++;
-				        }
-				        if (nt.GenPart_pdgId()[mi] == 23)
-				        {
-                                            Nb++;
-				        }
-				    }
-				}
-                                if (Nb == 2)
-				{
-                                    return nt.FatJet_msoftdrop()[AK8idx];
-				}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("Msd_AK8_1_boost_btag_ZbbTruth", 180, 0, 180, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                return nt.FatJet_msoftdrop()[AK8idx];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("N_emu_ZbbTruth", 6, -0.5, 5.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {   
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && (Id == 5 || Id == -5) && Status > 20 && Status < 30)
-                                    {   
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {   
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {   
-                                            Nb++;
-                                        }
-                                    }
-                                }
-                                if (Nb == 2)
-                                {   
-                                    int N_emu = 0;
-                                    unsigned int Nmax = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").size();
-                                    for (unsigned int i = 0; i < Nmax; i++)
-                                    {
-                                        int Id = ana.tx.getBranchLazy<vector<int>>("Common_lep_pdgid").at(i);
-                                        if (abs(Id) == 13 || abs(Id) == 11)
-                                        {
-                                            LorentzVector Lep = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_lep_p4").at(i);
-                                            float pT = Lep.Pt();
-                                            float dR_AK8 = RooUtil::Calc::DeltaR(AK8, Lep);
-                                            if (pT > 5 && dR_AK8 < 0.8)
-                                            {
-                                                N_emu += 1;
-                                            }
-                                        }
-                                    }
-                                    return N_emu;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-
-
-    hists_Common.addHistogram("M_Z2b_Truth", 180, 0, 180, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0)
-        {
-            int Nb = 0;
-            for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-            {
-                int Id = nt.GenPart_pdgId()[i];
-                int Status = nt.GenPart_status()[i];
-                if (abs(Id) == 5 && Status > 20 && Status < 30)
-                {
-                    int mi = nt.GenPart_genPartIdxMother()[i];
-                    int count = 0;
-                    while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                    {
-                        mi = nt.GenPart_genPartIdxMother()[mi];
-                        count++;
-                    }
-                    if (nt.GenPart_pdgId()[mi] == 23) Nb++;
-                }
-            }
-            if (Nb == 2)
-            {
-                LorentzVector Truth2b;
-                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                {
-                    int Id = nt.GenPart_pdgId()[i];
-                    int Status = nt.GenPart_status()[i];
-                    if (abs(Id) == 5 && Status > 20 && Status < 30)
-                    {
-                        Truth2b += nt.GenPart_p4()[i];
-                    }       
-                }
-                return Truth2b.M();
-            }
-        }
-        return float(-1); } );
-*/
-
-
-    hists_Common.addHistogram("N_SV_ZbbTruth", 12, -0.5, 11.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
-                                    {
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {
-                                            Nb++;
-                                        }
-                                    }
-                                }
-                                if (Nb == 2)
-                                {
-                                    int N_SV = 0;
-                                    for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
-                                    {
-                                        float etaSV = nt.SV_eta()[i];
-                                        float phiSV = nt.SV_phi()[i];
-                                        float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
-                                        if (dR_AK8 < 0.8)
-                                        {
-                                            N_SV += 1;
-                                        }
-                                    }
-                                    return N_SV;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-                              
-
-    hists_Common.addHistogram("N_SV_dlenCut_ZbbTruth", 12, -0.5, 11.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
-                                    {
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {
-                                            Nb++;
-                                        }
-                                    }
-                                }
-                                if (Nb == 2)
-                                {
-                                    int N_SV = 0;
-                                    for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
-                                    {
-                                        float etaSV = nt.SV_eta()[i];
-                                        float phiSV = nt.SV_phi()[i];
-                                        float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
-                                        if (dR_AK8 < 0.8)
-                                        {
-                                            float dlenSV = nt.SV_dlen()[i];
-                                            if (dlenSV > 0.1) N_SV += 1;
-                                        }
-                                    }
-                                    return N_SV;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-
-
-    hists_Common.addHistogram("N_SV_massCut_ZbbTruth", 12, -0.5, 11.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
-                                    {
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {
-                                            Nb++;
-                                        }
-                                    }
-                                }
-                                if (Nb == 2)
-                                {
-                                    int N_SV = 0;
-                                    for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
-                                    {
-                                        float etaSV = nt.SV_eta()[i];
-                                        float phiSV = nt.SV_phi()[i];
-                                        float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
-                                        if (dR_AK8 < 0.8)
-                                        {
-                                            float massSV = nt.SV_mass()[i];
-                                            if (massSV > 3) N_SV += 1;
-                                        }
-                                    }
-                                    return N_SV;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-
-
-    hists_Common.addHistogram("N_SV_mdCut_ZbbTruth", 12, -0.5, 11.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {   
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {   
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
-                                    {
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {
-                                            Nb++;
-                                        }
-                                    }
-                                }
-                                if (Nb == 2)
-                                {
-                                    int N_SV = 0;
-                                    for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
-                                    {
-                                        float etaSV = nt.SV_eta()[i];
-                                        float phiSV = nt.SV_phi()[i];
-                                        float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
-                                        if (dR_AK8 < 0.8)
-                                        {
-                                            float massSV = nt.SV_mass()[i];
-                                            float dlenSV = nt.SV_dlen()[i];
-                                            if (massSV > 3 && dlenSV > 0.1) N_SV += 1;
-                                        }
-                                    }
-                                    return N_SV;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-         
-
-    hists_Common.addHistogram("N_SV_mdnCut_ZbbTruth", 12, -0.5, 11.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
-                                    {
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {
-                                            Nb++;
-                                        }
-                                    }
-                                }    
-                                if (Nb == 2)
-                                {
-                                    int N_SV = 0;
-                                    for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
-                                    {
-                                        float etaSV = nt.SV_eta()[i];
-                                        float phiSV = nt.SV_phi()[i];
-                                        float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
-                                        if (dR_AK8 < 0.8)
-                                        {
-                                            float massSV = nt.SV_mass()[i];
-                                            float dlenSV = nt.SV_dlen()[i];
-                                            float ndofSV = nt.SV_ndof()[i];
-                                            if (massSV > 3 && dlenSV > 0.1 && ndofSV >= 3) N_SV += 1;
-                                        }
-                                    }
-                                    return N_SV;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-
-
-
-    hists_Common.addHistogram("N_SV_ndofCut_Z4bTruth", 12, -0.5, 11.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int Nb = 0;
-                                for (unsigned int i = 0; i < nt.GenPart_p4().size(); i++)
-                                {   
-                                    float dR = RooUtil::Calc::DeltaR(AK8, nt.GenPart_p4()[i]);
-                                    int Id = nt.GenPart_pdgId()[i];
-                                    int Status = nt.GenPart_status()[i];
-                                    if (dR < 0.8 && abs(Id) == 5 && Status > 20 && Status < 30)
-                                    {
-                                        int mi = nt.GenPart_genPartIdxMother()[i];
-                                        int count = 0;
-                                        while (nt.GenPart_pdgId()[mi] != 23 && count < 10)
-                                        {
-                                            mi = nt.GenPart_genPartIdxMother()[mi];
-                                            count++;
-                                        }
-                                        if (nt.GenPart_pdgId()[mi] == 23)
-                                        {
-                                            Nb++;
-                                        }
-                                    }
-                                }
-                                if (Nb == 2)
-                                {
-                                    int N_SV = 0;
-                                    for (unsigned int i = 0; i < nt.SV_mass().size(); i++)
-                                    {
-                                        float etaSV = nt.SV_eta()[i];
-                                        float phiSV = nt.SV_phi()[i];
-                                        float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
-                                        if (dR_AK8 < 0.8)
-                                        {
-                                            float ndofSV = nt.SV_ndof()[i];
-                                            if (ndofSV >= 3) N_SV += 1;
-                                        }
-                                    }
-                                    return N_SV;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-
-/*
-    hists_Common.addHistogram("daughter_ZTruth", 14, 0.5, 14.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_ZTruth_idx").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector Z, AK4, AK8;
-            Z = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_ZTruth_p4").at(0);
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);           
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                if (RooUtil::Calc::DeltaR(AK8, Z) < 0.6)
-                                {
-                                    for (unsigned int i = 0; i < nt.GenPart_pdgId().size(); i++)
-                                    {
-                                        //if (ana.tx.getBranchLazy<vector<int>>("Common_ZTruth_idx").at(0) == nt.GenPart_genPartIdxMother()[i])
-                                        int midx = nt.GenPart_genPartIdxMother()[i];
-                                        if (nt.GenPart_pdgId()[i] != 23 && nt.GenPart_pdgId()[midx] == 23)
-                                        {
-                                            return abs(nt.GenPart_pdgId()[i]);
-                                            break;
-                                        }
-                                    }
-                                }    
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );   
-
-
-// HT
-    hists_Common.addHistogram("HT", 1000, 0, 1000, [&]() {
-	if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            float HT = 0;
-            for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size(); i++)
-            {
-                LorentzVector fatjet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(i);
-                HT += fatjet.Pt();
-            }   
-
-            if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").size() != 0)
-            {
-                for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").size(); i++) 
-                { 
-                    if (ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                    {
-                        LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_p4").at(i);
-                        HT += jet.Pt();
-                    }
-                }
-            }
-
-            if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_met_p4").size() != 0)
-            {
-                for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_met_p4").size(); i++)
-                {
-                    LorentzVector met = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_met_p4").at(i);
-                    HT += met.Pt();
-                }
-            }
-
-            return HT;
-        }
-        return float(-1); } );
-
-//Adding
-// Num of jets (1 AK8 + n AK4) >= 1
-    hists_Common.addHistogram("N_jets_total", 9, -0.5, 8.5, [&]() {
-	if (ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int NJets = 1;
-                                for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                                {
-                                    LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                                    if (jet.Pt() < 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                                    {
-                                        NJets += 1;
-                                    }
-                                }
-                                return NJets;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-
-
-    hists_Common.addHistogram("N_jets_total_ZbbTruth", 9, -0.5, 8.5, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_ZTruth_idx").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            if (AK4.Pt() > 200)
-            {
-                if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                {
-                    if (AK8.Pt() > 100)
-                    {
-                        int JetOver60 = 0;
-                        for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                        {
-                            LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                            if (jet.Pt() > 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                            {
-                                JetOver60 += 1;
-                            }
-                        }
-                        if (JetOver60 == 0)
-                        {
-                            int AK8idx = ana.tx.getBranchLazy<vector<int>>("Common_fatjet_idxs").at(0);
-                            if (nt.FatJet_deepTagMD_bbvsLight()[AK8idx] > 0.9)
-                            {
-                                int NJets = 1;
-                                for (unsigned int i = 1; i < ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size(); i++)
-                                {
-                                    LorentzVector jet = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(i);
-                                    if (jet.Pt() < 60 && ana.tx.getBranchLazy<vector<int>>("Common_jet_overlapfatjet").at(i) == -1)
-                                    {
-                                        NJets += 1;
-                                    }
-                                }
-                                return NJets;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return int(-1); } );
-*/
-//****************************************************************************************************//
-/*
-    hists_Common.addHistogram("pT_AK8_1_ZTruthboost", 300, 200, 800, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector b1, b2, Z2b, AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (AK4.Vect().Dot(Z2b.Vect()) < 0)
-            {
-                if (AK4.Pt() > 200)
-                {
-                    if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                    {
-                        return AK8.Pt();
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("dR_ZTruthAK8_1_ZTruthboost", 200, 0, 4, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").size() != 0 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0)
-        {
-            LorentzVector b1, b2, Z2b, AK4, AK8;
-            AK4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0);
-            AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").at(1);
-            Z2b = b1 + b2;
-            if (AK4.Vect().Dot(Z2b.Vect()) < 0)
-            {
-                if (AK4.Pt() > 200)
-                {
-                    if (AK4.Vect().Dot(AK8.Vect()) < 0)
-                    {
-                        return RooUtil::Calc::DeltaR(AK8, Z2b);
-                    }
-                }
-            }
-        }
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("bbscore_btagCSVV2", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagCSVV2()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ddscore_btagCSVV2", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_dTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagCSVV2()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ccscore_btagCSVV2", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_cTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagCSVV2()[0]; } return float(-10); } );
-    hists_Common.addHistogram("uuscore_btagCSVV2", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_uTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagCSVV2()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ssscore_btagCSVV2", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_sTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagCSVV2()[0]; } return float(-10); } );
-
-
-    hists_Common.addHistogram("bbscore_btagDeepB", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagDeepB()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ddscore_btagDeepB", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_dTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagDeepB()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ccscore_btagDeepB", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_cTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagDeepB()[0]; } return float(-10); } );
-    hists_Common.addHistogram("uuscore_btagDeepB", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_uTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagDeepB()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ssscore_btagDeepB", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_sTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_btagDeepB()[0]; } return float(-10); } );
-
-
-    hists_Common.addHistogram("bbscore_deepTagMD_ZbbvsQCD", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_ZbbvsQCD()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ddscore_deepTagMD_ZbbvsQCD", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_dTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_ZbbvsQCD()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ccscore_deepTagMD_ZbbvsQCD", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_cTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_ZbbvsQCD()[0]; } return float(-10); } );
-    hists_Common.addHistogram("uuscore_deepTagMD_ZbbvsQCD", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_uTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_ZbbvsQCD()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ssscore_deepTagMD_ZbbvsQCD", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_sTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_ZbbvsQCD()[0]; } return float(-10); } );
-
-
-    hists_Common.addHistogram("bbscore_deepTagMD_bbvsLight", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_bbvsLight()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ddscore_deepTagMD_bbvsLight", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_dTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_bbvsLight()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ccscore_deepTagMD_bbvsLight", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_cTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_bbvsLight()[0]; } return float(-10); } );
-    hists_Common.addHistogram("uuscore_deepTagMD_bbvsLight", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_uTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_bbvsLight()[0]; } return float(-10); } );
-    hists_Common.addHistogram("ssscore_deepTagMD_bbvsLight", 50, 0, 1, [&]() { if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_sTruth_p4").size() == 2 && ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").size() != 0){ return nt.FatJet_deepTagMD_bbvsLight()[0]; } return float(-10); } );
-*/
-
-//***************************************************************************************************//
-
-/*
-    hists_Common.addHistogram("Mass4b", 200, 50, 600, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 4)
-        {
-            LorentzVector b1, b2, b3, b4;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(1);
-            b3 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(2);
-            b4 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(3);
-            return (b1 + b2 + b3 + b4).M();
-        }
-        return float(0); } );
-
-
-    hists_Common.addHistogram("Massb1", 120, 0.1, 120, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 4)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0).M();
-        return float(0); } );
-
-
-    hists_Common.addHistogram("Massb2", 120, 0.1, 120, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 4)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(1).M();
-        return float(0); } );
-
-
-    hists_Common.addHistogram("Massb3", 120, 0.1, 120, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 4)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(2).M();
-        return float(0); } );
-
-
-    hists_Common.addHistogram("Massb4", 120, 0.1, 120, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 4)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(3).M();
-        return float(0); } );
-
-
-    hists_Common.addHistogram("JetpT_1", 500, 0, 500, [&]() { 
-        if (ana.tx.getBranchLazy<vector<int>>("Common_jet_tightID").size() != 0) 
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0).Pt(); 
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("JetpT_2", 500, 0, 500, [&]() { 
-        if (ana.tx.getBranchLazy<vector<int>>("Common_jet_tightID").size() > 1) 
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(1).Pt(); 
-        return float(-1);} );
-
-
-    hists_Common.addHistogram("JetEta_1", 100, -3, 3, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_jet_tightID").size() != 0)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0).Eta();
-        return float(-10); } );
-
-
-    hists_Common.addHistogram("JetEta_2", 100, -3, 3, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_jet_tightID").size() > 1)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(1).Eta();
-        return float(-10);} );
-
-
-//b-tagging
-    hists_Common.addHistogram("bJetpT_1", 500, 0, 500, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_bjet_tightID").size() != 0) 
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0).Pt();
-        return float(-1); } );
-
-
-    hists_Common.addHistogram("bJetpT_2", 500, 0, 500, [&]() { 
-        if (ana.tx.getBranchLazy<vector<int>>("Common_bjet_tightID").size() > 1) 
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(1).Pt(); 
-        return float(-1);} );
-
-
-    hists_Common.addHistogram("bJetEta_1", 60, -3, 3, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_bjet_tightID").size() != 0)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(0).Eta();
-        return float(-10); } );
-
-
-    hists_Common.addHistogram("bJetEta_2", 60, -3, 3, [&]() {
-        if (ana.tx.getBranchLazy<vector<int>>("Common_bjet_tightID").size() > 1)
-            return ana.tx.getBranchLazy<vector<LorentzVector>>("Common_jet_tightp4").at(1).Eta();
-        return float(-10);} );
-
-
-    hists_Common.addHistogram("Z2bJetpT", 500, 0, 500, [&]() {
-        if (ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").size() == 2)
+        float dR_min = 10;
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
         {   
-            LorentzVector b1, b2;
-            b1 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(0);
-            b2 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_bjet_tightp4").at(1);
-            return (b1 + b2).Pt();
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {   
+                float dX = nt.SV_x()[i] - nt.PV_x();
+                float dY = nt.SV_y()[i] - nt.PV_y();
+                float dZ = nt.SV_z()[i] - nt.PV_z();
+                TVector3 V;
+                V.SetXYZ(dX, dY, dZ);
+                
+                float dR_GenPartSV = sqrt((G.Eta()-V.Eta())*(G.Eta()-V.Eta()) + (G.Phi()-V.Phi())*(G.Phi()-V.Phi()));;
+                if (dR_GenPartSV < dR_min) dR_min = dR_GenPartSV;
+            }
         }
-        return float(-1); } );
-*/
+        return dR_min; } );
+
+
+
+    hists_Common.addHistogram("N_SV_bhadronCut", 8, -0.5, 7.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        std::vector<LorentzVector> Gs;
+        for (unsigned int i = 0; i < nt.GenPart_p4().size(); ++i)
+        {
+            int mi = nt.GenPart_genPartIdxMother()[i];
+            if (abs(nt.GenPart_p4()[mi].M() - 5) < 1 && nt.GenPart_p4()[i].M() < 3)
+            {
+                Gs.push_back(nt.GenPart_p4()[mi]);//b hadron (mass: 4 - 6 GeV, daughter mass < 3 GeV) -- weakly decayed
+            }
+        }
+        std::vector<TVector3> SVs;
+        for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
+        {
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {
+                float dX = nt.SV_x()[i] - nt.PV_x();
+                float dY = nt.SV_y()[i] - nt.PV_y();
+                float dZ = nt.SV_z()[i] - nt.PV_z();
+                TVector3 V;
+                V.SetXYZ(dX, dY, dZ);
+                SVs.push_back(V);
+            }
+        }
+        int N_SV = 0;
+        for (unsigned int g = 0; g < Gs.size(); g++)
+        {
+            LorentzVector G = Gs[g];
+            float dR_min = 10;
+            for (unsigned int i = 0; i < SVs.size(); i++)
+            {
+                TVector3 V = SVs[i];
+                float dR_GenPartSV = sqrt((G.Eta()-V.Eta())*(G.Eta()-V.Eta()) + (G.Phi()-V.Phi())*(G.Phi()-V.Phi()));;
+                if (dR_GenPartSV < dR_min) dR_min = dR_GenPartSV;
+            }
+            if (dR_min < 0.05) N_SV += 1;
+        }
+        return N_SV; } );
+ 
+
+
+    hists_Common.addHistogram("N_SV_bnCut", 8, -0.5, 7.5, [&]() {
+        LorentzVector AK8 = ana.tx.getBranchLazy<vector<LorentzVector>>("Common_fatjet_p4").at(0);
+        std::vector<LorentzVector> Gs;
+        for (unsigned int i = 0; i < nt.GenPart_p4().size(); ++i)
+        {   
+            int mi = nt.GenPart_genPartIdxMother()[i];
+            if (abs(nt.GenPart_p4()[mi].M() - 5) < 1 && nt.GenPart_p4()[i].M() < 3)
+            {   
+                Gs.push_back(nt.GenPart_p4()[mi]);//b hadron (mass: 4 - 6 GeV, daughter mass < 3 GeV) -- weakly decayed
+            }
+        }
+        std::vector<TVector3> SVs;
+        for (unsigned int i = 0; i < nt.SV_eta().size(); i++)
+        {   
+            float etaSV = nt.SV_eta()[i];
+            float phiSV = nt.SV_phi()[i];
+            float dR_AK8 = sqrt((etaSV-AK8.Eta())*(etaSV-AK8.Eta())+(phiSV-AK8.Phi())*(phiSV-AK8.Phi()));
+            if (dR_AK8 < 0.8)
+            {   
+                float ndofSV = nt.SV_ndof()[i];
+                if (ndofSV >= 3)
+                {
+                    float dX = nt.SV_x()[i] - nt.PV_x();
+                    float dY = nt.SV_y()[i] - nt.PV_y();
+                    float dZ = nt.SV_z()[i] - nt.PV_z();
+                    TVector3 V;
+                    V.SetXYZ(dX, dY, dZ);
+                    SVs.push_back(V);
+                }
+            }
+        }
+        int N_SV = 0;
+        for (unsigned int g = 0; g < Gs.size(); g++)
+        {
+            LorentzVector G = Gs[g];
+            float dR_min = 10;
+            for (unsigned int i = 0; i < SVs.size(); i++)
+            {
+                TVector3 V = SVs[i];
+                float dR_GenPartSV = sqrt((G.Eta()-V.Eta())*(G.Eta()-V.Eta()) + (G.Phi()-V.Phi())*(G.Phi()-V.Phi()));;
+                if (dR_GenPartSV < dR_min) dR_min = dR_GenPartSV;
+            }
+            if (dR_min < 0.05) N_SV += 1;
+        }
+        return N_SV; } );
 
      // Book histograms to cuts that user wants for this category.
-    ana.cutflow.bookHistogramsForCut(hists_Common, "CommonCut");
+    ana.cutflow.bookHistogramsForCut(hists_Common, "RealCutZ2b");
 
 
 
